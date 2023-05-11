@@ -1,0 +1,126 @@
+-- Assignment 1 - François d’Entremont - GISY5003/3082/Spatial Database Management
+
+-- Working with areas. The following queries are based on the census_division table.
+-- 1. Listing the census divisions with their corresponding areas in hectares.
+-- I am showing the ids because some census divisions have the same name
+SELECT cd.cdname AS census_division, cd.cduid as census_division_id,
+	ST_Area(cd.cdboundary) / 10000 AS area_hectares
+FROM geography.census_division cd
+
+-- 2. Query for largest census division.
+SELECT cd.cdname AS census_division, ST_Area(cd.cdboundary) / 10000 AS area_hectares
+FROM geography.census_division cd 
+ORDER BY area_hectares DESC
+LIMIT 1;
+-- Northumberland is the largest census division.
+
+-- 3. Query for smallest census division.
+SELECT cd.cdname AS census_division, ST_Area(cd.cdboundary) / 10000 AS area_hectares
+FROM geography.census_division cd 
+ORDER BY area_hectares
+LIMIT 1;
+-- Richmond is the smallest census division.
+
+-- 4. Query for largest agricultural ecumene division.
+SELECT cd.cdname AS census_division, ST_Area(cd.aeboundary) / 10000 AS area_hectares
+FROM geography.census_division cd 
+ORDER BY area_hectares DESC
+LIMIT 1;
+-- Cumberland has the largest agricultural ecumene.
+
+-- 5. Query for smallest agricultural ecumene division.
+SELECT cd.cdname AS census_division, ST_Area(cd.aeboundary) / 10000 AS area_hectares
+FROM geography.census_division cd 
+ORDER BY area_hectares
+LIMIT 1;
+-- Victoria has the smallest agricultural ecumene.
+
+-- 6. Query for the census division with largest proportion of agricultural ecumene to
+-- census division in percentage.
+SELECT cd.cdname AS census_division,
+	(ST_Area(cd.aeboundary) / ST_Area(cd.cdboundary)) * 100 AS ae_percent
+FROM geography.census_division cd 
+ORDER BY ae_percent DESC
+LIMIT 1;
+-- Prince is the census division with with largest proportion of agricultural ecumene
+-- to census division.
+
+-- 7. Query for the census division with smallest proportion of agricultural ecumene
+-- to census division in percentage.
+SELECT cd.cdname AS census_division,
+	(ST_Area(cd.aeboundary) / ST_Area(cd.cdboundary)) * 100 AS ae_percent
+FROM geography.census_division cd 
+ORDER BY ae_percent
+LIMIT 1;
+-- Queens is the census division with with smallest proportion of agricultural ecumene
+-- to census division in percentage.
+
+-- Crops. The following queries are based on the crop_statistics and crop_type tables.
+-- 1. Query for total area of each crop grown in the Maritimes in 2011.
+SELECT ct.name AS crop_type, sum(cs.area) AS total_area_2011
+FROM agriculture.crop_statistics cs, agriculture.crop_type ct 
+WHERE cs.cropid = ct.id AND cs.year = 2011
+GROUP BY ct.id;
+
+-- 2. Query for largest crop grown, by area, in the Maritimes in 2011.
+SELECT ct.name AS crop_type, sum(cs.area) AS total_area_2011
+FROM agriculture.crop_statistics cs, agriculture.crop_type ct 
+WHERE cs.cropid = ct.id AND cs.year = 2011
+GROUP BY ct.id
+ORDER BY total_area_2011 DESC
+LIMIT 1;
+-- "All other tame hay and fodder crops" is listed as the largest crop grown, by area,
+-- in the Maritimes in 2011.
+
+-- 3. Query for largest crop grown, by area, in the maritimes in 2016
+SELECT ct.name AS crop_type, sum(cs.area) AS total_area_2016
+FROM agriculture.crop_statistics cs, agriculture.crop_type ct 
+WHERE cs.cropid = ct.id AND cs.year = 2016
+GROUP BY ct.id
+ORDER BY total_area_2016 DESC
+LIMIT 1;
+-- "All other tame hay and fodder crops" is listed as the largest crop grown, by area,
+-- in the Maritimes in 2016.
+
+-- Crop areas. The following queries use all the tables.
+-- 1. Query for largest area of potatoes in 2011.
+SELECT cd.cdname AS census_division, ct.name AS crop_type, sum(cs.area) AS total_potatoes_2011
+FROM geography.census_division cd, agriculture.crop_statistics cs,
+	agriculture.crop_type ct, geography.census_consolidated_subdivision ccs
+WHERE cs.cropid = ct.id AND cd.cduid = ccs.cduid AND ccs.ccsuid = cs.ccsuid AND cs.year = 2011
+	AND ct.name = 'Potatoes'
+GROUP BY cd.cduid, ct.id
+ORDER BY total_potatoes_2011 DESC
+LIMIT 1;
+-- the Prince census division grew the most potatoes in 2011.
+
+-- 2. Query for largest area of potatoes in 2016.
+SELECT cd.cdname AS census_division, ct.name AS crop_type, sum(cs.area) AS total_potatoes_2016
+FROM geography.census_division cd, agriculture.crop_statistics cs, agriculture.crop_type ct,
+	geography.census_consolidated_subdivision ccs
+WHERE cs.cropid = ct.id AND cd.cduid = ccs.cduid AND ccs.ccsuid = cs.ccsuid AND
+	cs.year = 2016 AND ct.name = 'Potatoes'
+GROUP BY cd.cduid, ct.id
+ORDER BY total_potatoes_2016 DESC
+LIMIT 1;
+-- the Prince census division grew the most potatoes in 2016.
+
+-- 3. Query for the division with the largest area, proportionally, of total corn in 2011.
+SELECT cd.cdname AS census_division,
+	total_corn_table.total_corn / (ST_Area(cd.aeboundary) / 10000) AS total_corn_proportion
+FROM geography.census_division cd, (
+		SELECT ccs.cduid, sum(cs.area) AS total_corn
+		FROM agriculture.crop_statistics cs, agriculture.crop_type ct,
+		geography.census_consolidated_subdivision ccs
+		WHERE cs.cropid = ct.id AND ccs.ccsuid = cs.ccsuid AND cs.year = 2011 AND 
+		ct.name = 'Total corn'
+		GROUP BY ccs.cduid
+) total_corn_table
+WHERE cd.cduid = total_corn_table.cduid
+ORDER BY total_corn_proportion DESC
+LIMIT 1;
+-- In this Query, we first use a subquery to find the total corn grouped by census division id and
+-- then we use the main query to find the proportion of total corn per aeboundary for each
+-- census division
+-- The census division with the largest area, proportionally, of total corn in 2011 is Kings with
+-- a ratio of 0.0202 (rounded to 4 decimal places) or 2.02%.

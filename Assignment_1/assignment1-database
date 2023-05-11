@@ -1,0 +1,47 @@
+-- Assignment 1 - François d’Entremont - GISY5003/3082/Spatial Database Management
+
+-- Spatially enabling the database.
+CREATE EXTENSION postgis;
+
+--Inserting schemas.
+CREATE SCHEMA geography;
+
+CREATE SCHEMA agriculture;
+
+--Creating tables.
+CREATE TABLE geography.census_division (
+	cduid numeric(4) PRIMARY KEY,
+	cdname varchar(100),
+	cdboundary geometry(Geometry, 3348),
+	aeboundary geometry(Geometry, 3348)
+);
+
+CREATE TABLE geography.census_consolidated_subdivision (
+	ccsuid numeric(7) PRIMARY KEY,
+	ccsname	varchar(100),
+	cduid numeric(4) REFERENCES geography.census_division(cduid)
+);
+
+CREATE TABLE agriculture.crop_type (
+	id numeric(2) PRIMARY KEY,
+	name varchar(200)
+);
+
+CREATE TABLE agriculture.crop_statistics (
+	ccsuid numeric(7) REFERENCES geography.census_consolidated_subdivision(ccsuid),
+	year numeric(4),
+	cropid numeric(2) REFERENCES agriculture.crop_type(id),
+	area numeric(4),
+	farms_reporting numeric(3),
+	PRIMARY KEY (ccsuid, year, cropid)
+);
+
+ALTER TABLE geography.census_consolidated_subdivision 
+ADD COLUMN boundary geometry(Geometry, 3348);
+
+-- Data loaded into the tables using PSQL tool using the following commands:
+-- \i 'D:/Postgres/Assignment1/maritimes-census-division-wkt.sql'
+-- \i 'D:/Postgres/Assignment1/maritimes-census-consolidated-subdivision.sql'
+-- \i 'D:/Postgres/Assignment1/maritimes-crop-type.sql'
+-- \i 'D:/Postgres/Assignment1/maritimes-field-crops-hay-census-statistics.sql'
+-- \i 'D:/Postgres/Assignment1/maritimes-census-consolidated-subdivision-wkt.sql'
