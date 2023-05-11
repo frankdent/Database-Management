@@ -1,0 +1,92 @@
+-- Assignment 2 - François d’Entremont 
+-- GISY5003/3082/Spatial Database Management
+-- November 27, 2022
+-- 1. Count the number of airports across Canada by province / territory.
+-- 	  Order the result set by count in descending order.
+
+SELECT pt.pname AS province_name, COUNT(a.airport_name) AS airport_count
+FROM transcan.airport a, statscan.province_territory pt
+WHERE ST_Within(ST_Transform(a.airport_location::geometry, 3348), pt.boundary)
+GROUP BY pt.pname
+ORDER BY airport_count DESC;
+-- This query returns a count of the number of airports per province in
+-- descending order. Note that we are using EPSG:3348 here.
+
+-- 2. Count the number of airports in BC where the service provided is only
+-- 	  "Control Tower".
+
+SELECT pt.pname AS province_name, COUNT(a.airport_name) AS airport_count
+FROM transcan.airport a, statscan.province_territory pt
+WHERE ST_Within(ST_Transform(a.airport_location::geometry, 3348),
+				pt.boundary) AND
+	a.service = 1 AND pt.pname = 'British Columbia'
+GROUP BY pt.pname;
+-- This query returns a count of the number of airports in BC where the service 
+-- provided is only "Control Tower". Note that we are using EPSG:3348 here.
+
+-- 3. Count the number of airports in Quebec where the service provided 
+--    includes "Control Tower".
+
+SELECT pt.pname AS province_name, COUNT(a.airport_name) AS airport_count
+FROM transcan.airport a, statscan.province_territory pt
+WHERE ST_Within(ST_Transform(a.airport_location::geometry, 3348),
+				pt.boundary) AND
+	pt.pname = 'Quebec' AND	a.service != 2
+GROUP BY pt.pname;
+-- This query returns the number of airports in Quebec where the service
+-- provided includes "Control Tower". Note that we are using EPSG:3348 here.
+
+-- 4. Calculate the distance between St John's Intl and Vancouver International
+--    in kilometres.
+-- We use geography type when spatial data is dispersed widely across the world
+-- When two geography types are passed in to the ST_Distance function 
+-- it knows to calculate a great circle distance not a linear distance.
+-- Airport locations are already of geography type and in EPSG:4617, which is
+-- a geodetic datum.
+
+SELECT ST_Distance(a.airport_location,
+				   b.airport_location) / 1000 AS distance_km
+FROM transcan.airport a, transcan.airport b
+WHERE a.airport_name = 'St John''s Intl' AND
+	b.airport_name = 'Vancouver International';
+-- The distance between St John's Intl and Vancouver International is using
+-- this method is 5022.692607896431 km. The airport locations are of type
+-- geography and we are using EPSG:4617
+
+-- 5. Calculate the distance between St John's Intl and Vancouver International
+--    in kilometres.
+-- We have to cast the airport locations into the geometry type and change the
+-- coordinate system from EPSG:4617 to the projected coordinate system EPSG:3348
+-- which will give a linear distance.
+
+SELECT ST_Distance(ST_Transform(a.airport_location::geometry, 3348),
+				   ST_Transform(b.airport_location::geometry, 3348)) / 1000 AS
+				   distance_km
+FROM transcan.airport a, transcan.airport b
+WHERE a.airport_name = 'St John''s Intl' AND
+	b.airport_name = 'Vancouver International';
+-- The distance between St John's Intl and Vancouver International is using
+-- this method is 4966.111349793799 km
+
+-- 6. The De Havilland Dash 8-400 has a range of 1878 km. Assuming it needs the
+-- Control Tower service at an airport, which airports can it fly to from
+-- Halifax Robert L. Stanfield International? Give the airport names, distance
+-- from Halifax in km and the service name.
+
+SELECT a.airport_name,
+	ST_Distance(a.airport_location, hfx.airport_location) / 1000 AS
+	distance_from_halifax_km, s.service_name
+FROM transcan.airport a, transcan.airport hfx, transcan.service s
+WHERE ST_DWithin(a.airport_location, hfx.airport_location, 1878000) AND
+	a.airport_name != 'Halifax Robert L. Stanfield International' AND
+	hfx.airport_name = 'Halifax Robert L. Stanfield International' AND
+	s.identifier = a.service AND
+	s.service_name IN ('Control Tower', 'Control Tower / Flight Service Station') 
+ORDER BY distance_from_halifax_km;
+-- This query returns all the airports 1878km from halifax airport where
+-- there is a control tower ordered by closest distance from Halifax. Assuming
+-- the one in Halifax is unavailable, the closest Control Tower is at 
+-- Charlottetown airport with a great circle distance of 164.62856247189 km. We
+-- are using the great circle distance because it makes more sense that a plane
+-- travels along a sphere than taking the linear distance. We are also using 
+-- the EPSG:4617 coordinate reference system.

@@ -1,0 +1,39 @@
+-- Assignment 2 - François d’Entremont
+-- GISY5003/3082/Spatial Database Management
+
+-- Spatially enabling the database.
+CREATE EXTENSION postgis;
+
+--Inserting schemas.
+CREATE SCHEMA statscan;
+
+CREATE SCHEMA transcan;
+
+--Creating tables.
+CREATE TABLE statscan.province_territory (
+	identifier numeric(2) PRIMARY KEY,
+	pname varchar(50),
+	boundary geometry(Geometry, 3348)
+);
+
+CREATE TABLE transcan.service (
+	identifier numeric(1) PRIMARY KEY,
+	service_name varchar(38)
+);
+
+CREATE TABLE transcan.airport (
+	identifier numeric(3) PRIMARY KEY,
+	iata varchar(3),
+	service numeric(2) REFERENCES transcan.service(identifier),
+	airport_name varchar(49),
+	city varchar(20),
+	airport_location geography(POINT, 4617)
+);
+
+-- Data loaded into the tables using PSQL tool using the following commands
+-- in this order:
+-- \i 'D:/Postgres/Assignment2/insert-province-territory.sql'
+-- \i 'D:/Postgres/Assignment2/insert-service.sql'
+-- \i 'D:/Postgres/Assignment2/insert-airport.sql'
+
+-- Contains information licensed under the Open Government Licence – Canada.
